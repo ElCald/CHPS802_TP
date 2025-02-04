@@ -1,3 +1,4 @@
+%%cuda
 //
 // include files
 //
@@ -7,16 +8,18 @@
 #include <string.h>
 #include <math.h>
 
-#include <helper_cuda.h>
+#include "/content/drive/MyDrive/Cours./s8/CHPS802 - GPU/TP/TP01/Fichiers dentête-20250114/helper_cuda.h"
 
 
 //
 // kernel routine
-// 
+//
 
 __global__ void my_first_kernel(float *x)
 {
   int tid = threadIdx.x + blockDim.x*blockIdx.x;
+
+  printf("thread : %d\n", tid);
 
   x[tid] = (float) threadIdx.x;
 }
@@ -29,7 +32,7 @@ __global__ void my_first_kernel(float *x)
 int main(int argc, const char **argv)
 {
   float *h_x, *d_x;
-  int   nblocks, nthreads, nsize, n; 
+  int   nblocks, nthreads, nsize, n;
 
   // initialise card
 
@@ -41,13 +44,14 @@ int main(int argc, const char **argv)
   nthreads = 8;
   nsize    = nblocks*nthreads ;
 
+
   // allocate memory for array
 
   h_x = (float *)malloc(nsize*sizeof(float));
   checkCudaErrors(cudaMalloc((void **)&d_x, nsize*sizeof(float)));
 
   // execute kernel
-  
+
   my_first_kernel<<<nblocks,nthreads>>>(d_x);
   getLastCudaError("my_first_kernel execution failed\n");
 
@@ -58,7 +62,7 @@ int main(int argc, const char **argv)
 
   for (n=0; n<nsize; n++) printf(" n,  x  =  %d  %f \n",n,h_x[n]);
 
-  // free memory 
+  // free memory
 
   checkCudaErrors(cudaFree(d_x));
   free(h_x);
