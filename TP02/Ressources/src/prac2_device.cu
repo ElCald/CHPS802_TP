@@ -31,8 +31,7 @@ __global__ void RNG_init(curandState *state)
 }
 
 
-__global__ void pathcalc(curandState *device_state, float *d_v,
-                         int mpath, int NPATH)
+__global__ void pathcalc(curandState *device_state, float *d_v, int mpath, int NPATH)
 {
   float s1, s2, y1, y2, payoff;
 
@@ -67,7 +66,7 @@ __global__ void pathcalc(curandState *device_state, float *d_v,
 ////////////////////////////////////////////////////////////////////////
 
 int main(int argc, const char **argv){
-    
+
   int     NPATH=9600000, h_N=100;
   float   h_T, h_r, h_sigma, h_rho, h_alpha, h_dt, h_con1, h_con2;
   float  *h_v, *d_v;
@@ -121,14 +120,13 @@ int main(int argc, const char **argv){
   cudaDeviceProp props;
   cudaGetDevice(&device);
   cudaGetDeviceProperties(&props, device);
-  
+
   int maxActiveBlocks, blockSize=128;
-  cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxActiveBlocks, 
-                                                 pathcalc, blockSize, 0);
+  cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxActiveBlocks, pathcalc, blockSize, 0);
   printf("maxActiveBlocks/SM = %d \n",maxActiveBlocks);
   printf("number of SMs      = %d \n",props.multiProcessorCount);
   int blocks = maxActiveBlocks*props.multiProcessorCount;
-  
+
   // execute kernels
 
   cudaEventRecord(start);

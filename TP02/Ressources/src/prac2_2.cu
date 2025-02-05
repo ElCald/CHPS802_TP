@@ -1,16 +1,14 @@
-
-////////////////////////////////////////////////////////////////////////
-// GPU version of Monte Carlo algorithm using NVIDIA's CURAND library
-////////////////////////////////////////////////////////////////////////
-
-#include <stdlib.h>
+#include <cuda_runtime.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include <cuda.h>
 #include <curand.h>
-
 #include <helper_cuda.h>
+#include <curand_kernel.h>
+
+
 
 ////////////////////////////////////////////////////////////////////////
 // CUDA global constants
@@ -33,10 +31,10 @@ __global__ void pathcalc(float *d_z, float *d_v)
   // move array pointers to correct position
 
   // version 1
-  ind = threadIdx.x + 2*N*blockIdx.x*blockDim.x;
+  //ind = threadIdx.x + 2*N*blockIdx.x*blockDim.x;
 
   // version 2
-  // ind = 2*N*threadIdx.x + 2*N*blockIdx.x*blockDim.x;
+  ind = 2*N*threadIdx.x + 2*N*blockIdx.x*blockDim.x;
 
 
   // path calculation
@@ -47,15 +45,15 @@ __global__ void pathcalc(float *d_z, float *d_v)
   for (int n=0; n<N; n++) {
     y1   = d_z[ind];
     // version 1
-    ind += blockDim.x;      // shift pointer to next element
+    //ind += blockDim.x;      // shift pointer to next element
     // version 2
-    // ind += 1; 
+    ind += 1;
 
     y2   = rho*y1 + alpha*d_z[ind];
     // version 1
-    ind += blockDim.x;      // shift pointer to next element
+    //ind += blockDim.x;      // shift pointer to next element
     // version 2
-    // ind += 1; 
+    ind += 1;
 
     s1 = s1*(con1 + con2*y1);
     s2 = s2*(con1 + con2*y2);
@@ -75,7 +73,7 @@ __global__ void pathcalc(float *d_z, float *d_v)
 ////////////////////////////////////////////////////////////////////////
 
 int main(int argc, const char **argv){
-    
+
   int     NPATH=9600000, h_N=100;
   float   h_T, h_r, h_sigma, h_rho, h_alpha, h_dt, h_con1, h_con2;
   float  *h_v, *d_v, *d_z;
@@ -133,8 +131,7 @@ int main(int argc, const char **argv){
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&milli, start, stop);
 
-  printf("CURAND normal RNG  execution time (ms): %f,  samples/sec: %e \n",
-          milli, 2.0*h_N*NPATH/(0.001*milli));
+  printf("CURAND normal RNG  execution time (ms): %f,  samples/sec: %e \n", milli, 2.0*h_N*NPATH/(0.001*milli));
 
   // execute kernel and time it
 
@@ -177,6 +174,22 @@ int main(int argc, const char **argv){
 
   // CUDA exit -- needed to flush printf write buffer
 
+  // Calcul du volume de données transférées
+  double data_read = 2.0 * h_N * NPATH * sizeof(float) / 1e9; // en Go
+  double data_written = NPATH * sizeof(float) / 1e9; // en Go
+  double total_data = data_read + data_written;
+
+  // Calcul du taux de transfert effectif
+  double execution_time = milli / 1000.0; // conversion en secondes
+  double bandwidth = total_data / execution_time; // Go/s
+
+  printf("Data read: %f GB\n", data_read);
+  printf("Data written: %f GB\n", data_written);
+  printf("Total data transferred: %f GB\n", total_data);
+  printf("Effective memory bandwidth: %f GB/s\n", bandwidth); // Environ 40GB/s avec le chargeur
+
   cudaDeviceReset();
+
+
 
 }
