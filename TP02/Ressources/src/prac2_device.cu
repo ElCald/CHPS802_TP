@@ -152,8 +152,7 @@ int main(int argc, const char **argv){
 
   // copy back results
 
-  checkCudaErrors( cudaMemcpy(h_v, d_v, sizeof(float)*NPATH,
-                   cudaMemcpyDeviceToHost) );
+  checkCudaErrors( cudaMemcpy(h_v, d_v, sizeof(float)*NPATH, cudaMemcpyDeviceToHost) );
 
   // compute average
 

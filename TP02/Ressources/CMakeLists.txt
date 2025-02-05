@@ -27,10 +27,11 @@ include_directories(../../include)
 
 # Add source files tous les fichiers nécessaires à la compilation
 file(GLOB_RECURSE SOURCE_FILES ${SRC_FOLDER}/*.cpp ${SRC_FOLDER}/*.cu)
+list(FILTER SOURCE_FILES EXCLUDE REGEX "${SRC_FOLDER}/[${EXECUTABLES}]+\\${EXT_FILE}$")
 
 # Boucle pour créer chaque exécutable
 foreach(EXE ${EXECUTABLES})
-    add_executable(${EXE} ${SRC_FOLDER}/${EXE}${EXT_FILE} ${SRC_FOLDER}/${EXE}${EXT_FILE})
+    add_executable(${EXE} ${SRC_FOLDER}/${EXE}${EXT_FILE} ${SRC_FOLDER}/${EXE}${EXT_FILE} ${SOURCE_FILES})
     set_target_properties(${EXE} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(${EXE} PRIVATE curand)
 endforeach()
