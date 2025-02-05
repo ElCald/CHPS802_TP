@@ -14,18 +14,16 @@
 ////////////////////////////////////////////////////////////////////////
 
 #define BLOCK_X 16
-#define BLOCK_Y 16
+#define BLOCK_Y 4
+#define BLOCK_Z 4
 
 ////////////////////////////////////////////////////////////////////////
 // kernel function
 ////////////////////////////////////////////////////////////////////////
 
-// Note: one thread per node in the 2D block;
-// after initialisation it marches in the k-direction
+// Note: one thread per node in the 3D block
 
-__global__ void GPU_laplace3d(int NX, int NY, int NZ,
-                              const float* __restrict__ d_u1,
-                                    float* __restrict__ d_u2)
+__global__ void GPU_laplace3d(int NX, int NY, int NZ, const float* __restrict__ d_u1, float* __restrict__ d_u2)
 {
   int       i, j, k, IOFF, JOFF, KOFF;
   long long indg;
@@ -37,28 +35,24 @@ __global__ void GPU_laplace3d(int NX, int NY, int NZ,
 
   i    = threadIdx.x + blockIdx.x*BLOCK_X;
   j    = threadIdx.y + blockIdx.y*BLOCK_Y;
-  indg = i + j*NX;
+  k    = threadIdx.z + blockIdx.z*BLOCK_Z;
 
   IOFF = 1;
   JOFF = NX;
   KOFF = NX*NY;
 
-  if ( i>=0 && i<=NX-1 && j>=0 && j<=NY-1 ) {
+  indg = i + j*JOFF + k*KOFF;
 
-    for (k=0; k<NZ; k++) {
-
-      if (i==0 || i==NX-1 || j==0 || j==NY-1 || k==0 || k==NZ-1) {
-        u2 = d_u1[indg];  // Dirichlet b.c.'s
-      }
-      else {
-        u2 = ( d_u1[indg-IOFF] + d_u1[indg+IOFF]
-             + d_u1[indg-JOFF] + d_u1[indg+JOFF]
-             + d_u1[indg-KOFF] + d_u1[indg+KOFF] ) * sixth;
-      }
-      d_u2[indg] = u2;
-
-      indg += KOFF;
+  if (i>=0 && i<=NX-1 && j>=0 && j<=NY-1 && k>=0 && k<=NZ-1) {
+    if (i==0 || i==NX-1 || j==0 || j==NY-1 || k==0 || k==NZ-1) {
+      u2 = d_u1[indg];  // Dirichlet b.c.'s
     }
+    else {
+      u2 = ( d_u1[indg-IOFF] + d_u1[indg+IOFF]
+           + d_u1[indg-JOFF] + d_u1[indg+JOFF]
+           + d_u1[indg-KOFF] + d_u1[indg+KOFF] ) * sixth;
+    }
+    d_u2[indg] = u2;
   }
 }
 
@@ -74,12 +68,10 @@ void Gold_laplace3d(int NX, int NY, int NZ, float* h_u1, float* h_u2);
 
 int main(int argc, const char **argv){
 
-  int       NX=512, NY=512, NZ=512,
-            REPEAT=20, bx, by, i, j, k;
-  float    *h_u1, *h_u2, *h_foo,
-           *d_u1, *d_u2, *d_foo;
+  long long NX=512, NY=512, NZ=512, REPEAT=20, bx, by, bz, i, j, k, ind;
+  float    *h_u1, *h_u2, *h_foo, *d_u1, *d_u2, *d_foo;
   
-  size_t    ind, bytes = sizeof(float) * NX*NY*NZ;
+  size_t    bytes = sizeof(float) * NX*NY*NZ;
 
   printf("Grid dimensions: %d x %d x %d \n\n", NX, NY, NZ);
 
@@ -143,9 +135,10 @@ int main(int argc, const char **argv){
 
   bx = 1 + (NX-1)/BLOCK_X;
   by = 1 + (NY-1)/BLOCK_Y;
+  bz = 1 + (NZ-1)/BLOCK_Z;
 
-  dim3 dimGrid(bx,by);
-  dim3 dimBlock(BLOCK_X,BLOCK_Y);
+  dim3 dimGrid(bx,by,bz);
+  dim3 dimBlock(BLOCK_X,BLOCK_Y,BLOCK_Z);
 
   // Execute GPU kernel
 
@@ -161,7 +154,7 @@ int main(int argc, const char **argv){
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&milli, start, stop);
-  printf("%dx GPU_laplace3d: %.1f (ms) \n\n", REPEAT, milli);
+  printf("%dx GPU_laplace3d_new: %.1f (ms) \n\n", REPEAT, milli);
 
   // Read back GPU results
 
