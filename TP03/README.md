@@ -16,6 +16,9 @@ On initialise la grille qu'on copie dans la mémoire `device`. Puis on lance les
 #### Vérification des grilles `laplace3d_test.cu`
 Test unitaire sur les grilles `h_u1` et `h_u2`, cette dernière comporte les valeurs des calcules fait sur le GPU.
 
+
+### Changement taille grille
+
 #### Tailles blocs et temps d'exécution `laplace3d.cu`
     - X=1, Y=1   : 20x GPU_laplace3d: 424.0 (ms) 
     - X=1, Y=32  : 20x GPU_laplace3d: 376.8 (ms)
