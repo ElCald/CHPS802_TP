@@ -70,9 +70,14 @@ void Gold_laplace3d(int NX, int NY, int NZ, float* h_u1, float* h_u2);
 // Main program
 ////////////////////////////////////////////////////////////////////////
 
+#define GRID_SIZE 1024
+
+int g_argc;
+const char** g_argv;
+
 TEST(CudaTest, Laplace3d) {
 
-    int       NX=512, NY=512, NZ=512, REPEAT=20, bx, by, i, j, k;
+    int       NX=GRID_SIZE, NY=GRID_SIZE, NZ=GRID_SIZE, REPEAT=20, bx, by, i, j, k;
     float    *h_u1, *h_u2, *h_foo, *d_u1, *d_u2, *d_foo;
     
     size_t    ind, bytes = sizeof(float) * NX*NY*NZ;
@@ -81,7 +86,7 @@ TEST(CudaTest, Laplace3d) {
 
     // initialise card
 
-    findCudaDevice(argc, argv);
+    findCudaDevice(g_argc, g_argv);
 
     // initialise CUDA timing
 
@@ -128,6 +133,7 @@ TEST(CudaTest, Laplace3d) {
         Gold_laplace3d(NX, NY, NZ, h_u1, h_u2);
         h_foo = h_u1; h_u1 = h_u2; h_u2 = h_foo;   // swap h_u1 and h_u2
     }
+
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -182,9 +188,12 @@ TEST(CudaTest, Laplace3d) {
 
     printf("rms error = %f \n",sqrt(err/ (float)(NX*NY*NZ)));
 
-
+    
     // Test 
-    EQ_EXPECT(h_u2, d_u2);
+    for(int i=0; i<NX * NY * NZ; i++){
+        ASSERT_FLOAT_EQ(h_u1[i], h_u2[i]);
+    }
+    
         
     // Release GPU and CPU memory
 
@@ -198,6 +207,10 @@ TEST(CudaTest, Laplace3d) {
 
 
 int main(int argc, char **argv) {
+    
+    g_argc = argc;
+    g_argv = const_cast<const char**>(argv);
+
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
