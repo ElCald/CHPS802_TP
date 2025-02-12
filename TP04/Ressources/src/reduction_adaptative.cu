@@ -29,7 +29,7 @@ float reduction_gold(float* idata, int len)
 // GPU routine
 ////////////////////////////////////////////////////////////////////////
 
-__global__ void reduction(float *g_odata, float *g_idata)
+__global__ void reduction(float *g_odata, float *g_idata, int m)
 {
     // dynamically allocated shared memory
 
@@ -37,18 +37,24 @@ __global__ void reduction(float *g_odata, float *g_idata)
 
     int tid = threadIdx.x;
 
-
-    // first, each thread loads data into shared memory
+    // first, each thread loads data into shared memory 
     temp[tid] = g_idata[tid];
+    __syncthreads();
 
+
+    if (tid >= m) {
+        temp[tid - m] += temp[tid];
+    }
+    __syncthreads();
+    
 
     // next, we perform binary tree reduction
-    for (int d=blockDim.x/2; d>0; d=d/2) {
+    for (int d=m/2; d>0; d=d/2) {
         __syncthreads();  // ensure previous step completed 
         if (tid<d)  temp[tid] += temp[tid+d];
     }
-
-
+   
+    
     // finally, first thread puts result into global memory
     if (tid==0) g_odata[0] = temp[0];
 }
@@ -70,10 +76,15 @@ int main( int argc, const char** argv)
 
 
     num_blocks   = 1;  // start with only 1 thread block
-    num_threads  = 512;
+    num_threads  = 156;
     num_elements = num_blocks*num_threads;
     mem_size     = sizeof(float) * num_elements;
 
+    int m;
+    for (m = 1; m < num_threads; m = 2 * m) {} // Trouve la plus petite puissance de 2 ≥ blockSize
+    m = m / 2; // On prend la puissance de 2 juste en dessous
+    
+    printf("%d\n", m);
 
 
     // allocate host memory to store the input data
@@ -100,7 +111,7 @@ int main( int argc, const char** argv)
 
     // execute the kernel
     shared_mem_size = sizeof(float) * num_threads;
-    reduction<<<num_blocks, num_threads, shared_mem_size>>>(d_odata, d_idata);
+    reduction<<<num_blocks, num_threads, shared_mem_size>>>(d_odata, d_idata, m);
     getLastCudaError("reduction kernel execution failed");
 
 

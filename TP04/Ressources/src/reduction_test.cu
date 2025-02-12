@@ -5,6 +5,8 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
+
+#include <gtest/gtest.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,19 +39,19 @@ __global__ void reduction(float *g_odata, float *g_idata)
 
     int tid = threadIdx.x;
 
-
     // first, each thread loads data into shared memory
+
     temp[tid] = g_idata[tid];
 
-
     // next, we perform binary tree reduction
+
     for (int d=blockDim.x/2; d>0; d=d/2) {
         __syncthreads();  // ensure previous step completed 
         if (tid<d)  temp[tid] += temp[tid+d];
     }
 
-
     // finally, first thread puts result into global memory
+
     if (tid==0) g_odata[0] = temp[0];
 }
 
@@ -58,7 +60,10 @@ __global__ void reduction(float *g_odata, float *g_idata)
 // Program main
 ////////////////////////////////////////////////////////////////////////
 
-int main( int argc, const char** argv) 
+int g_argc;
+const char** g_argv;
+
+TEST(CudaTest, Reduction) 
 {
     int num_blocks, num_threads, num_elements, mem_size, shared_mem_size;
 
@@ -66,7 +71,7 @@ int main( int argc, const char** argv)
 
 
     // initialise card
-    findCudaDevice(argc, argv);
+    findCudaDevice(g_argc, g_argv);
 
 
     num_blocks   = 1;  // start with only 1 thread block
@@ -75,8 +80,8 @@ int main( int argc, const char** argv)
     mem_size     = sizeof(float) * num_elements;
 
 
-
     // allocate host memory to store the input data
+    h_data = (float*) malloc(mem_size);
     h_data = (float*) malloc(mem_size);
 
     // and initialize to integer values between 0 and 10
@@ -108,6 +113,8 @@ int main( int argc, const char** argv)
     cudaMemcpy(h_data, d_odata, sizeof(float), cudaMemcpyDeviceToHost);
 
 
+    ASSERT_FLOAT_EQ(sum, h_data[0]);
+
     // check results
     printf("reduction error = %f\n",h_data[0]-sum);
 
@@ -120,4 +127,14 @@ int main( int argc, const char** argv)
 
     // CUDA exit -- needed to flush printf write buffer
     cudaDeviceReset();
+}
+
+
+int main(int argc, char **argv) {
+    
+    g_argc = argc;
+    g_argv = const_cast<const char**>(argv);
+
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
