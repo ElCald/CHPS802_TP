@@ -30,35 +30,44 @@ float reduction_gold(float* idata, int len)
 ////////////////////////////////////////////////////////////////////////
 
 
-__global__ void reduction(float *g_odata, float *g_idata, int num_elements) {
+__global__ void reduction(float *g_odata, float *g_idata, int num_elements)
+{
 
-    extern __shared__ float temp[];
+    __shared__ float partial_sums[32];  
+
+    int tid = threadIdx.x; 
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    
+    float sum = 0.0f;
 
     
-    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-    int tid = threadIdx.x;
-
-    temp[tid] = 0.0f;
-
     if( idx < num_elements ){
-        temp[tid] = g_idata[idx];
+        sum = g_idata[idx];
+    }
+
+
+    for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+        sum += __shfl_down_sync(0xFFFFFFFF, sum, offset);
+    }
+
+
+    if (tid % warpSize == 0) {  
+        partial_sums[tid / warpSize] = sum;
     }
     
     __syncthreads();
 
 
-    for (int d = blockDim.x / 2; d > 0; d /= 2) {
+    if (tid < warpSize) {
+        sum = (tid < blockDim.x / warpSize) ? partial_sums[tid] : 0.0f;
 
-        __syncthreads();
-
-        if ( tid < d ) {
-            temp[tid] += temp[tid + d];
+        for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+            sum += __shfl_down_sync(0xFFFFFFFF, sum, offset);
         }
 
-    }
-
-    if ( tid == 0 ) {
-        g_odata[blockIdx.x] = temp[0];
+        if (tid == 0) {
+            g_odata[blockIdx.x] = sum;  
+        }
     }
 }
 
@@ -115,9 +124,8 @@ int main( int argc, const char** argv)
     getLastCudaError("reduction kernel execution failed");
 
 
-    // copy device memory to host 
+    // copy device memory to host     
     cudaMemcpy(h_odata, d_odata, sizeof(float) * num_blocks, cudaMemcpyDeviceToHost);
-    
 
     for (int i = 0; i < num_blocks; i++) {
         res_sum += h_odata[i];

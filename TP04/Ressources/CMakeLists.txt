@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.18)
 project(TP3 LANGUAGES CXX CUDA)
 
 # Fichier à executer
-set(EXECUTABLES reduction reduction_test reduction_adaptative reduction_multiblock)
+set(EXECUTABLES reduction reduction_test reduction_adaptative reduction_multiblock reduction_shuffle)
 
 
 set(SRC_FOLDER "src") # Répertoire source
